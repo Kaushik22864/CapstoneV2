@@ -1,0 +1,40 @@
+[Assets]
+    ├── app-on-table.webp
+    ├── doctor-removebg-preview.png
+    ├── doctor.png
+    ├── logo-1.webp
+    ├── logo-2.webp
+    ├── on-bench-rpototype.png
+    ├── pending.png
+    └── Pharmacist--Streamline-Milano.png
+[backend]
+    ├── [config]
+        └── db.js
+    ├── [controllers]
+        └── specialistController.js
+    ├── [models]
+        └── Specialist.js
+    ├── [node_modules]
+    ├── [routes]
+        ├── specialistRoutes.js
+ [CSS]
+    ├── [analysis.css]
+    ├── [index.css]
+    ├── [login.css]
+    ├── [register-step2.css]
+    ├── [register.css]
+    └── [verification-pending.css]
+ [HTML]
+    ├── [analysis.html]
+    ├── [index.html]
+    ├── [login.html]
+    ├── [register-step2.html]
+    ├── [register.html]
+    └── [verification-pending.html]
+ [node_modules]
+ [Scripts]              
+    ├── [login.js]
+    ├── [register-step2.js]
+    └── [register.js]
+ [.gitignore]
+ [README.md]

@@ -1,0 +1,7 @@
+
+node_modules/
+backend/node_modules/
+
+AI Model/model/*.keras
+
+!AI Model/model/VGGandResnet.keras
