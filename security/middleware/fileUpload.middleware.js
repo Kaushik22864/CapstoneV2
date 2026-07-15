@@ -37,10 +37,10 @@ const MAGIC_NUMBERS = {
   'ffd8ffe3': 'image/jpeg',
   'ffd8ffe8': 'image/jpeg',
   'ffd8ffdb': 'image/jpeg',
-  
+
   // PNG images
   '89504e47': 'image/png',
-  
+
   // PDF documents
   '25504446': 'application/pdf'
 };
@@ -81,33 +81,33 @@ function sanitizeFilename(filename) {
   if (!filename || typeof filename !== 'string') {
     return `file_${Date.now()}`;
   }
-  
+
   // Remove path components
   let sanitized = path.basename(filename);
-  
+
   // Remove null bytes (used in path traversal attacks)
   sanitized = sanitized.replace(/\0/g, '');
-  
+
   // Remove path traversal patterns
   sanitized = sanitized.replace(/\.\./g, '');
   sanitized = sanitized.replace(/\//g, '_');
   sanitized = sanitized.replace(/\\/g, '_');
-  
+
   // Remove special characters that could cause issues
   sanitized = sanitized.replace(/[<>:"|?*]/g, '_');
-  
+
   // Limit length
   if (sanitized.length > 100) {
     const ext = path.extname(sanitized);
     const name = path.basename(sanitized, ext);
     sanitized = name.substring(0, 100 - ext.length) + ext;
   }
-  
+
   // If nothing left, generate a random name
   if (!sanitized || sanitized === '.' || sanitized === '..') {
     sanitized = `file_${Date.now()}`;
   }
-  
+
   return sanitized;
 }
 
@@ -123,7 +123,7 @@ function generateSecureFilename(originalFilename) {
   const ext = path.extname(originalFilename).toLowerCase();
   const uuid = crypto.randomUUID();
   const timestamp = Date.now();
-  
+
   return `${uuid}_${timestamp}${ext}`;
 }
 
@@ -135,12 +135,12 @@ function generateSecureFilename(originalFilename) {
  */
 function validateExtension(filename) {
   const ext = path.extname(filename).toLowerCase();
-  
+
   // Check against dangerous extensions
   if (DANGEROUS_EXTENSIONS.includes(ext)) {
     return false;
   }
-  
+
   // Check against allowed extensions
   return securityConfig.fileUpload.allowedExtensions.includes(ext);
 }
@@ -168,26 +168,27 @@ function verifyMagicNumber(buffer, claimedMimeType) {
   if (!buffer || buffer.length < 4) {
     return { valid: false, detectedType: 'unknown' };
   }
-  
+
   // Get first 4-8 bytes as hex
   const hex4 = buffer.slice(0, 4).toString('hex').toLowerCase();
   const hex8 = buffer.slice(0, 8).toString('hex').toLowerCase();
-  
+
   // Check against known magic numbers
   let detectedType = MAGIC_NUMBERS[hex4] || MAGIC_NUMBERS[hex8];
-  
-  // Special handling for PDF (may have whitespace before signature)
-  if (!detectedType && buffer.toString('ascii', 0, 20).includes('%PDF')) {
+
+  // Special handling for PDF (may have whitespace before signature, but must start with %PDF)
+  const trimmedHeader = buffer.toString('ascii', 0, 20).trimStart();
+  if (!detectedType && trimmedHeader.startsWith('%PDF')) {
     detectedType = 'application/pdf';
   }
-  
+
   if (!detectedType) {
     return { valid: false, detectedType: 'unknown' };
   }
-  
+
   // Verify detected type matches claimed type
   const valid = detectedType === claimedMimeType;
-  
+
   return { valid, detectedType };
 }
 
@@ -203,7 +204,7 @@ function verifyMagicNumber(buffer, claimedMimeType) {
 function scanForThreats(buffer, mimeType) {
   const threats = [];
   const content = buffer.toString('utf8', 0, Math.min(buffer.length, 10000));
-  
+
   // Patterns that indicate malicious content
   const dangerousPatterns = [
     { pattern: /<\s*script/i, threat: 'Embedded script tag' },
@@ -219,7 +220,7 @@ function scanForThreats(buffer, mimeType) {
     { pattern: /shell_exec/i, threat: 'Shell execution' },
     { pattern: /passthru\s*\(/i, threat: 'Command passthrough' }
   ];
-  
+
   // For image files, check for polyglot attacks
   if (mimeType.startsWith('image/')) {
     for (const { pattern, threat } of dangerousPatterns) {
@@ -228,7 +229,7 @@ function scanForThreats(buffer, mimeType) {
       }
     }
   }
-  
+
   // For PDFs, check for JavaScript
   if (mimeType === 'application/pdf') {
     if (/\/JavaScript/i.test(content) || /\/JS\s/i.test(content)) {
@@ -241,7 +242,7 @@ function scanForThreats(buffer, mimeType) {
       threats.push('PDF contains auto-open action');
     }
   }
-  
+
   return {
     safe: threats.length === 0,
     threats
@@ -255,12 +256,12 @@ function scanForThreats(buffer, mimeType) {
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.resolve(securityConfig.fileUpload.uploadDir);
-    
+
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true, mode: 0o750 });
     }
-    
+
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
@@ -293,10 +294,10 @@ function fileFilter(req, file, cb) {
       filename: file.originalname,
       ipAddress: req.ip
     });
-    
+
     return cb(new Error('File type not allowed'), false);
   }
-  
+
   // Validate MIME type
   if (!validateMimeType(file.mimetype)) {
     auditService.logSecurityEvent({
@@ -306,10 +307,10 @@ function fileFilter(req, file, cb) {
       mimeType: file.mimetype,
       ipAddress: req.ip
     });
-    
+
     return cb(new Error('Invalid file type'), false);
   }
-  
+
   cb(null, true);
 }
 
@@ -377,7 +378,7 @@ function multipleDocuments(fieldName, maxCount = 5) {
 function validateUpload(req, res, next) {
   try {
     const file = req.file;
-    
+
     if (!file) {
       return res.status(400).json({
         success: false,
@@ -387,7 +388,7 @@ function validateUpload(req, res, next) {
         }
       });
     }
-    
+
     // Verify magic number
     const magicResult = verifyMagicNumber(file.buffer, file.mimetype);
     
@@ -409,10 +410,36 @@ function validateUpload(req, res, next) {
         }
       });
     }
-    
+
+    // Verify extension matches detected MIME type
+    const ext = path.extname(file.originalname).toLowerCase();
+    const expectedExtensions = {
+      'image/png': ['.png'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/jpg': ['.jpg', '.jpeg'],
+      'application/pdf': ['.pdf']
+    };
+    const allowedExtsForMime = expectedExtensions[magicResult.detectedType];
+    if (!allowedExtsForMime || !allowedExtsForMime.includes(ext)) {
+      auditService.logSecurityEvent({
+        event: 'EXTENSION_MIME_MISMATCH',
+        userId: req.user?.userId,
+        filename: file.originalname,
+        detectedType: magicResult.detectedType,
+        ipAddress: req.ip
+      });
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_FILE_EXTENSION',
+          message: 'File extension does not match its content type.'
+        }
+      });
+    }
+
     // Scan for threats
     const scanResult = scanForThreats(file.buffer, file.mimetype);
-    
+
     if (!scanResult.safe) {
       auditService.logSecurityEvent({
         event: 'MALICIOUS_FILE_DETECTED',
@@ -421,7 +448,7 @@ function validateUpload(req, res, next) {
         threats: scanResult.threats,
         ipAddress: req.ip
       });
-      
+
       return res.status(400).json({
         success: false,
         error: {
@@ -430,24 +457,24 @@ function validateUpload(req, res, next) {
         }
       });
     }
-    
+
     // All validations passed - save file to disk
     const uploadDir = path.resolve(securityConfig.fileUpload.uploadDir);
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true, mode: 0o750 });
     }
-    
+
     const secureFilename = generateSecureFilename(file.originalname);
     const filePath = path.join(uploadDir, secureFilename);
-    
+
     // Write file
     fs.writeFileSync(filePath, file.buffer, { mode: 0o640 });
-    
+
     // Update file object with saved location
     req.file.savedFilename = secureFilename;
     req.file.savedPath = filePath;
     req.file.sanitizedOriginalName = sanitizeFilename(file.originalname);
-    
+
     // Log successful upload
     auditService.log({
       action: 'FILE_UPLOADED',
@@ -460,7 +487,7 @@ function validateUpload(req, res, next) {
       },
       ipAddress: req.ip
     });
-    
+
     next();
   } catch (error) {
     console.error('File validation error:', error);
@@ -484,7 +511,7 @@ function validateUpload(req, res, next) {
 function validateMultipleUploads(req, res, next) {
   try {
     const files = req.files;
-    
+
     if (!files || files.length === 0) {
       return res.status(400).json({
         success: false,
@@ -494,18 +521,18 @@ function validateMultipleUploads(req, res, next) {
         }
       });
     }
-    
+
     const validatedFiles = [];
     const uploadDir = path.resolve(securityConfig.fileUpload.uploadDir);
-    
+
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true, mode: 0o750 });
     }
-    
+
     for (const file of files) {
       // Verify magic number
       const magicResult = verifyMagicNumber(file.buffer, file.mimetype);
-      
+
       if (!magicResult.valid) {
         auditService.logSecurityEvent({
           event: 'MAGIC_NUMBER_MISMATCH',
@@ -515,7 +542,7 @@ function validateMultipleUploads(req, res, next) {
           detectedType: magicResult.detectedType,
           ipAddress: req.ip
         });
-        
+
         return res.status(400).json({
           success: false,
           error: {
@@ -524,10 +551,36 @@ function validateMultipleUploads(req, res, next) {
           }
         });
       }
-      
+
+      // Verify extension matches detected MIME type
+      const ext = path.extname(file.originalname).toLowerCase();
+      const expectedExtensions = {
+        'image/png': ['.png'],
+        'image/jpeg': ['.jpg', '.jpeg'],
+        'image/jpg': ['.jpg', '.jpeg'],
+        'application/pdf': ['.pdf']
+      };
+      const allowedExtsForMime = expectedExtensions[magicResult.detectedType];
+      if (!allowedExtsForMime || !allowedExtsForMime.includes(ext)) {
+        auditService.logSecurityEvent({
+          event: 'EXTENSION_MIME_MISMATCH',
+          userId: req.user?.userId,
+          filename: file.originalname,
+          detectedType: magicResult.detectedType,
+          ipAddress: req.ip
+        });
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_FILE_EXTENSION',
+            message: `File "${sanitizeFilename(file.originalname)}" extension does not match its content type.`
+          }
+        });
+      }
+
       // Scan for threats
       const scanResult = scanForThreats(file.buffer, file.mimetype);
-      
+
       if (!scanResult.safe) {
         auditService.logSecurityEvent({
           event: 'MALICIOUS_FILE_DETECTED',
@@ -536,7 +589,7 @@ function validateMultipleUploads(req, res, next) {
           threats: scanResult.threats,
           ipAddress: req.ip
         });
-        
+
         return res.status(400).json({
           success: false,
           error: {
@@ -545,12 +598,12 @@ function validateMultipleUploads(req, res, next) {
           }
         });
       }
-      
+
       // Save file
       const secureFilename = generateSecureFilename(file.originalname);
       const filePath = path.join(uploadDir, secureFilename);
       fs.writeFileSync(filePath, file.buffer, { mode: 0o640 });
-      
+
       validatedFiles.push({
         ...file,
         savedFilename: secureFilename,
@@ -558,9 +611,9 @@ function validateMultipleUploads(req, res, next) {
         sanitizedOriginalName: sanitizeFilename(file.originalname)
       });
     }
-    
+
     req.validatedFiles = validatedFiles;
-    
+
     // Log successful uploads
     auditService.log({
       action: 'MULTIPLE_FILES_UPLOADED',
@@ -575,7 +628,7 @@ function validateMultipleUploads(req, res, next) {
       },
       ipAddress: req.ip
     });
-    
+
     next();
   } catch (error) {
     console.error('Multiple file validation error:', error);
@@ -606,7 +659,7 @@ function handleMulterError(error, req, res, next) {
       errorCode: error.code,
       ipAddress: req.ip
     });
-    
+
     switch (error.code) {
       case 'LIMIT_FILE_SIZE':
         return res.status(400).json({
@@ -616,7 +669,7 @@ function handleMulterError(error, req, res, next) {
             message: `File size exceeds the ${securityConfig.fileUpload.maxSize / (1024 * 1024)}MB limit.`
           }
         });
-      
+
       case 'LIMIT_FILE_COUNT':
         return res.status(400).json({
           success: false,
@@ -625,7 +678,7 @@ function handleMulterError(error, req, res, next) {
             message: 'Too many files uploaded.'
           }
         });
-      
+
       case 'LIMIT_UNEXPECTED_FILE':
         return res.status(400).json({
           success: false,
@@ -634,7 +687,7 @@ function handleMulterError(error, req, res, next) {
             message: 'Unexpected file field.'
           }
         });
-      
+
       default:
         return res.status(400).json({
           success: false,
@@ -645,7 +698,7 @@ function handleMulterError(error, req, res, next) {
         });
     }
   }
-  
+
   // Pass non-multer errors to next handler
   if (error) {
     return res.status(400).json({
@@ -656,7 +709,7 @@ function handleMulterError(error, req, res, next) {
       }
     });
   }
-  
+
   next();
 }
 
