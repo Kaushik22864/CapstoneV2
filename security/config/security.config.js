@@ -60,22 +60,36 @@ const securityConfig = {
    */
   rateLimit: {
     auth: {
-      windowMs: 15 * 60 * 1000,
-      max: parseInt(process.env.RATE_LIMIT_MAX_LOGIN, 10) || 10,
-      message: 'Too many attempts. Please try again after 15 minutes.'
+      windowMs:
+        parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 30 * 1000,
+
+      max:
+        parseInt(process.env.RATE_LIMIT_MAX_LOGIN, 10) || 10,
+
+      message:
+        process.env.RATE_LIMIT_MESSAGE ||
+        "Too many attempts. Please try again after 30 seconds."
     },
+
     api: {
       windowMs: 15 * 60 * 1000,
       max: 100
     },
+
     upload: {
       windowMs: 60 * 60 * 1000,
-      max: parseInt(process.env.RATE_LIMIT_MAX_UPLOAD, 10) || 10
+      max:
+        parseInt(process.env.RATE_LIMIT_MAX_UPLOAD, 10) || 10
     },
+
     passwordReset: {
       windowMs: 15 * 60 * 1000,
-      max: parseInt(process.env.RATE_LIMIT_MAX_RESET, 10) || 5,
-      message: 'Too many password reset attempts. Please try again after 15 minutes.'
+
+      max:
+        parseInt(process.env.RATE_LIMIT_MAX_RESET, 10) || 5,
+
+      message:
+        "Too many password reset attempts. Please try again after 15 minutes."
     }
   },
 

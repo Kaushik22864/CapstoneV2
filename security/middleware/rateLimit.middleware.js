@@ -15,7 +15,7 @@
 
 'use strict';
 
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require("express-rate-limit");
 const securityConfig = require('../config/security.config');
 const { auditService } = require('../services');
 
@@ -29,19 +29,13 @@ const { auditService } = require('../services');
  * SECURITY: Prevents bypass by changing User-Agent or headers
  */
 function keyGenerator(req) {
-  // Use user ID if authenticated (prevents multi-account attacks)
-  if (req.user && req.user.userId) {
+  // Use authenticated user ID if available
+  if (req.user?.userId) {
     return `user:${req.user.userId}`;
   }
-  
-  // Fall back to IP address
-  // Note: Consider X-Forwarded-For header if behind proxy
-  const forwardedFor = req.headers['x-forwarded-for'];
-  const ip = forwardedFor 
-    ? forwardedFor.split(',')[0].trim() 
-    : req.ip || req.connection.remoteAddress;
-  
-  return `ip:${ip}`;
+
+  // Safe for both IPv4 and IPv6
+  return ipKeyGenerator(req.ip);
 }
 
 /**
@@ -63,10 +57,10 @@ function rateLimitHandler(req, res, next, options) {
     method: req.method,
     limiterType: options.limiterType || 'unknown'
   });
-  
+
   // Calculate retry time
   const retryAfter = Math.ceil(options.windowMs / 1000);
-  
+
   res.status(429).json({
     success: false,
     error: {
@@ -88,13 +82,13 @@ function skipHandler(req) {
   if (process.env.NODE_ENV === 'test') {
     return true;
   }
-  
+
   // Skip for whitelisted IPs (e.g., monitoring services)
   const whitelistedIPs = process.env.RATE_LIMIT_WHITELIST?.split(',') || [];
   if (whitelistedIPs.includes(req.ip)) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -109,13 +103,25 @@ const authLimiter = rateLimit({
   windowMs: securityConfig.rateLimit.auth.windowMs,
   max: securityConfig.rateLimit.auth.max,
   message: securityConfig.rateLimit.auth.message,
+
   standardHeaders: securityConfig.rateLimit.auth.standardHeaders,
   legacyHeaders: securityConfig.rateLimit.auth.legacyHeaders,
-  keyGenerator: keyGenerator,
-  skip: skipHandler,
+
+  keyGenerator,
+
+  skip: (req) => {
+    const skip = skipHandler(req);
+    console.log("Skip:", skip);
+    return skip;
+  },
+
   handler: (req, res, next, options) => {
-    rateLimitHandler(req, res, next, { ...options, limiterType: 'auth' });
-  }
+    console.log("🚫 AUTH RATE LIMIT REACHED");
+    rateLimitHandler(req, res, next, {
+      ...options,
+      limiterType: "auth",
+    });
+  },
 });
 
 /**
@@ -171,15 +177,27 @@ const passwordResetLimiter = rateLimit({
   message: securityConfig.rateLimit.passwordReset.message,
   standardHeaders: securityConfig.rateLimit.passwordReset.standardHeaders,
   legacyHeaders: securityConfig.rateLimit.passwordReset.legacyHeaders,
+
   keyGenerator: (req) => {
-    // Key by email for password reset to prevent targeting specific accounts
-    return `reset:${req.body?.email || req.ip}`;
+    // Limit by email if provided
+    if (req.body?.email) {
+      return `reset:${req.body.email.toLowerCase()}`;
+    }
+
+    // Otherwise use the IP safely
+    return `reset:${ipKeyGenerator(req)}`;
   },
+
   skip: skipHandler,
+
   handler: (req, res, next, options) => {
-    rateLimitHandler(req, res, next, { ...options, limiterType: 'passwordReset' });
-  }
+    rateLimitHandler(req, res, next, {
+      ...options,
+      limiterType: "passwordReset",
+    });
+  },
 });
+
 
 /**
  * Creates a custom rate limiter with specified options
@@ -207,9 +225,9 @@ function createLimiter(options) {
     keyGenerator: options.keyGenerator || keyGenerator,
     skip: options.skip || skipHandler,
     handler: (req, res, next, opts) => {
-      rateLimitHandler(req, res, next, { 
-        ...opts, 
-        limiterType: options.name || 'custom' 
+      rateLimitHandler(req, res, next, {
+        ...opts,
+        limiterType: options.name || 'custom'
       });
     }
   });
@@ -228,7 +246,7 @@ class SlidingWindowLimiter {
     this.max = options.max || 10;
     this.requests = new Map();
   }
-  
+
   /**
    * Check if request should be allowed
    * @param {string} key - Rate limit key
@@ -237,36 +255,36 @@ class SlidingWindowLimiter {
   check(key) {
     const now = Date.now();
     const windowStart = now - this.windowMs;
-    
+
     // Get or create request log for this key
     let requestLog = this.requests.get(key) || [];
-    
+
     // Remove expired entries
     requestLog = requestLog.filter(timestamp => timestamp > windowStart);
-    
+
     // Check if limit exceeded
     if (requestLog.length >= this.max) {
       const oldestRequest = requestLog[0];
       const resetTime = oldestRequest + this.windowMs;
-      
+
       return {
         allowed: false,
         remaining: 0,
         resetTime: resetTime
       };
     }
-    
+
     // Add current request
     requestLog.push(now);
     this.requests.set(key, requestLog);
-    
+
     return {
       allowed: true,
       remaining: this.max - requestLog.length,
       resetTime: now + this.windowMs
     };
   }
-  
+
   /**
    * Express middleware
    */
@@ -274,12 +292,12 @@ class SlidingWindowLimiter {
     return (req, res, next) => {
       const key = keyGenerator(req);
       const result = this.check(key);
-      
+
       // Set rate limit headers
       res.setHeader('X-RateLimit-Limit', this.max);
       res.setHeader('X-RateLimit-Remaining', result.remaining);
       res.setHeader('X-RateLimit-Reset', Math.ceil(result.resetTime / 1000));
-      
+
       if (!result.allowed) {
         auditService.logSecurityEvent({
           event: 'SLIDING_RATE_LIMIT_EXCEEDED',
@@ -287,9 +305,9 @@ class SlidingWindowLimiter {
           ipAddress: req.ip,
           path: req.originalUrl
         });
-        
+
         res.setHeader('Retry-After', Math.ceil((result.resetTime - Date.now()) / 1000));
-        
+
         return res.status(429).json({
           success: false,
           error: {
@@ -299,18 +317,18 @@ class SlidingWindowLimiter {
           }
         });
       }
-      
+
       next();
     };
   }
-  
+
   /**
    * Clean up expired entries periodically
    */
   cleanup() {
     const now = Date.now();
     const windowStart = now - this.windowMs;
-    
+
     for (const [key, requestLog] of this.requests.entries()) {
       const validRequests = requestLog.filter(ts => ts > windowStart);
       if (validRequests.length === 0) {
@@ -337,24 +355,24 @@ function progressiveLimiter(options = {}) {
     multiplier = 2,            // Double delay each time
     resetAfter = 900000        // Reset after 15 minutes of success
   } = options;
-  
+
   const delays = new Map();
-  
+
   return (req, res, next) => {
     const key = keyGenerator(req);
     const now = Date.now();
-    
+
     // Get current delay info
     let delayInfo = delays.get(key) || {
       currentDelay: 0,
       lastFailure: 0,
       failureCount: 0
     };
-    
+
     // Check if we need to wait
     if (delayInfo.currentDelay > 0) {
       const waitTime = delayInfo.lastFailure + delayInfo.currentDelay - now;
-      
+
       if (waitTime > 0) {
         return res.status(429).json({
           success: false,
@@ -366,7 +384,7 @@ function progressiveLimiter(options = {}) {
         });
       }
     }
-    
+
     // Reset if enough time has passed since last failure
     if (delayInfo.lastFailure && (now - delayInfo.lastFailure) > resetAfter) {
       delayInfo = {
@@ -376,14 +394,14 @@ function progressiveLimiter(options = {}) {
       };
       delays.set(key, delayInfo);
     }
-    
+
     // Add method to record success/failure
     res.recordSuccess = () => {
       delayInfo.currentDelay = 0;
       delayInfo.failureCount = 0;
       delays.set(key, delayInfo);
     };
-    
+
     res.recordFailure = () => {
       delayInfo.failureCount++;
       delayInfo.lastFailure = Date.now();
@@ -392,7 +410,7 @@ function progressiveLimiter(options = {}) {
         maxDelay
       );
       delays.set(key, delayInfo);
-      
+
       // Log progressive limiting
       auditService.logSecurityEvent({
         event: 'PROGRESSIVE_RATE_LIMIT',
@@ -402,7 +420,7 @@ function progressiveLimiter(options = {}) {
         ipAddress: req.ip
       });
     };
-    
+
     next();
   };
 }

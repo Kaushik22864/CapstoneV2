@@ -12,6 +12,8 @@ function Login() {
     password: "",
   });
 
+  const [error, setError] = useState("");
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -20,102 +22,96 @@ function Login() {
   };
 
   const handleLogin = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
+    setError("");
 
-    // Try Admin Login First
-    let response = await fetch(
-      "http://localhost:5000/api/admin/login",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
+    try {
+      // ----------------------------
+      // Try Admin Login
+      // ----------------------------
+      let response = await fetch(
+        "http://localhost:5000/api/admin/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      let data = await response.json();
+
+      // Rate limited
+      if (response.status === 429) {
+        setError(
+          data.error?.message ||
+          "Too many login attempts. Please try again later."
+        );
+        return;
       }
-    );
 
-    let data = await response.json();
+      // Admin Login Success
+      if (response.ok && data.success) {
+        localStorage.setItem("token", data.accessToken);
+        localStorage.setItem("role", "admin");
+        localStorage.setItem("admin", JSON.stringify(data.admin));
 
-    if (data.success) {
-
-      localStorage.setItem(
-        "token",
-        data.accessToken
-      );
-
-      localStorage.setItem(
-        "role",
-        "admin"
-      );
-
-      localStorage.setItem(
-        "admin",
-        JSON.stringify(data.admin)
-      );
-
-      alert("Welcome Admin!");
-
-      navigate("/admin-dashboard");
-
-      return;
-    }
-
-    // If not admin, try Specialist Login
-    response = await fetch(
-      "http://localhost:5000/api/specialists/login",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
+        navigate("/admin-dashboard");
+        return;
       }
-    );
 
-    data = await response.json();
-
-    if (data.success) {
-
-      localStorage.setItem(
-        "token",
-        data.accessToken
+      // ----------------------------
+      // Try Specialist Login
+      // ----------------------------
+      response = await fetch(
+        "http://localhost:5000/api/specialists/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
       );
 
-      localStorage.setItem(
-        "role",
-        "doctor"
-      );
+      data = await response.json();
 
-      localStorage.setItem(
-        "specialist",
-        JSON.stringify(data.specialist)
-      );
+      // Rate limited
+      if (response.status === 429) {
+        setError(
+          data.error?.message ||
+          "Too many login attempts. Please try again later."
+        );
+        return;
+      }
 
-      alert("Welcome Doctor!");
+      // Specialist Login Success
+      if (response.ok && data.success) {
+        localStorage.setItem("token", data.accessToken);
+        localStorage.setItem("role", "doctor");
+        localStorage.setItem(
+          "specialist",
+          JSON.stringify(data.specialist)
+        );
 
-      navigate("/analysis"); // Change later to doctor dashboard
+        navigate("/analysis");
+        return;
+      }
 
-      return;
+      // Login failed
+      setError("Invalid email or password.");
+
+    } catch (err) {
+      console.error(err);
+      setError("Unable to connect to the server.");
     }
-
-    alert("Invalid email or password");
-
-  } catch (error) {
-
-    console.error(error);
-
-    alert("Could not connect to server");
-
-  }
-};
+  };
 
   return (
     <div className="login-page">
-
       <div className="container">
-
         <div className="login-card">
 
           <div className="left">
@@ -153,6 +149,13 @@ function Login() {
                 required
               />
 
+              {error && (
+                <div className="login-error">
+                  <span className="error-icon">⚠</span>
+                  <span>{error}</span>
+                </div>
+              )}
+
               <div className="options">
 
                 <label className="remember">
@@ -183,6 +186,7 @@ function Login() {
               </p>
 
             </form>
+
           </div>
         </div>
       </div>
