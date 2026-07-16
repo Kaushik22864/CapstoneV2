@@ -1,14 +1,13 @@
 const express = require("express");
-const multer = require("multer");
 const axios = require("axios");
 const FormData = require("form-data");
+const { fileUploadMiddleware } = require("../../security/middleware");
 
 const { authMiddleware } = require("../../security/middleware/authentication.middleware");
 const { requireAnyRole, ROLES } = require("../../security/middleware/authorization.middleware");
 const Prediction = require("../models/Prediction");
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
 
 const FLASK_URL = process.env.FLASK_URL || "http://localhost:5001";
 
@@ -17,7 +16,8 @@ router.post(
   "/",
   authMiddleware,
   requireAnyRole(ROLES.DOCTOR, ROLES.ADMIN),
-  upload.single("image"),
+  fileUploadMiddleware.singleDocument("image"),
+  fileUploadMiddleware.validateUpload,
   async (req, res) => {
     try {
       if (!req.file) {
@@ -40,12 +40,22 @@ router.post(
         probabilities: flaskRes.data.probabilities,
       });
 
+      // Cleanup saved file on disk
+      if (req.file && req.file.savedPath) {
+        fileUploadMiddleware.deleteFile(req.file.savedPath);
+      }
+
       res.json(saved);
     } catch (err) {
       console.error("Prediction error:", err.message);
+      // Cleanup saved file on disk on error
+      if (req.file && req.file.savedPath) {
+        fileUploadMiddleware.deleteFile(req.file.savedPath);
+      }
       res.status(502).json({ error: "AI service unavailable" });
     }
-  }
+  },
+  fileUploadMiddleware.handleMulterError
 );
 
 // GET /api/predict/history
