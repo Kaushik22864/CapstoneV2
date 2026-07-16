@@ -8,6 +8,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
 import DoctorVerification from "./pages/DoctorVerification";
 import DoctorCredentialReview from "./pages/DoctorCredentialReview";
+import ForgotPassword from "./pages/ForgotPassword";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
       <Route path="/user-management" element={<UserManagement />} />
       <Route path="/doctor-verification" element={<DoctorVerification />} />
       <Route path="/doctor-credential-review/:id" element={<DoctorCredentialReview />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
     </Routes>
   );
 }

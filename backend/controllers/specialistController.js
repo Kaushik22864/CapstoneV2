@@ -4,6 +4,9 @@ const { AUDIT_EVENTS } = require("../../security/services/audit.service");
 const SpecialistApplication = require("../models/SpecialistApplication");
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
+const crypto=require("crypto");
+
+const emailService=require("../services/emailService");
 
 // ============================
 // Presigned Upload URL Proxy
@@ -214,6 +217,186 @@ const loginSpecialist = async (req, res) => {
   }
 };
 
+const sendForgotPasswordOTP = async(req,res)=>{
+
+    try{
+
+        const {email}=req.body;
+
+        const specialist=
+        await Specialist.findOne({
+            email:email.toLowerCase()
+        });
+
+        if(!specialist){
+
+            return res.status(404).json({
+                success:false,
+                message:"Email not found"
+            });
+
+        }
+
+        const otp=
+        Math.floor(
+            100000+Math.random()*900000
+        ).toString();
+
+        specialist.resetOTP=otp;
+
+        specialist.resetOTPExpires=
+        Date.now()+5*60*1000;
+
+        await specialist.save();
+
+        // await emailService.sendOTP(
+        //     specialist.email,
+        //     otp
+        // );
+
+        console.log("\n======================================");
+        console.log(" PASSWORD RESET OTP");
+        console.log("======================================");
+        console.log("Email :", specialist.email);
+        console.log("OTP   :", otp);
+        console.log("Expires In : 5 minutes");
+        console.log("======================================\n");
+
+        try {
+          await emailService.sendOTP(specialist.email, otp);
+           console.log("OTP email sent successfully.");
+          } catch (err) {
+          console.error("Failed to send OTP email:", err.message);
+        }
+
+        res.json({
+            success:true,
+            message:"OTP sent successfully"
+        });
+      }
+      catch(error){
+        console.error(error);
+        res.status(500).json({
+            success:false,
+            message:"Server Error"
+        });
+    }
+};
+
+const verifyOTP=async(req,res)=>{
+
+    try{
+
+        const {email,otp}=req.body;
+
+        const specialist=
+        await Specialist.findOne({
+            email:email.toLowerCase()
+        });
+
+        if(!specialist){
+
+            return res.status(404).json({
+                success:false,
+                message:"User not found"
+            });
+
+        }
+
+        if(
+            specialist.resetOTP!==otp ||
+            specialist.resetOTPExpires<Date.now()
+        ){
+
+            return res.status(400).json({
+                success:false,
+                message:"Invalid or Expired OTP"
+            });
+        }
+        res.json({
+            success:true,
+            message:"OTP Verified"
+        });
+    }
+    catch(error){
+        console.error(error);
+
+        res.status(500).json({
+            success:false,
+            message:"Server Error"
+        });
+    }
+};
+
+const resetPassword=async(req,res)=>{
+
+    try{
+        const{
+            email,
+            otp,
+            password
+        }=req.body;
+
+        const specialist=
+        await Specialist.findOne({
+            email:email.toLowerCase()
+        });
+
+        if(!specialist){
+
+            return res.status(404).json({
+                success:false,
+                message:"User not found"
+            });
+
+        }
+
+        if(
+            specialist.resetOTP!==otp ||
+            specialist.resetOTPExpires<Date.now()
+        ){
+
+            return res.status(400).json({
+                success:false,
+                message:"OTP Expired"
+            });
+
+        }
+
+        const hashedPassword=
+        await passwordService.hashPassword(
+            password,
+            {
+                userInfo:{
+                    email:specialist.email,
+                    firstName:specialist.firstName,
+                    lastName:specialist.lastName
+                }
+            }
+        );
+        specialist.password=hashedPassword;
+        specialist.resetOTP=null;
+        specialist.resetOTPExpires=null;
+        await specialist.save();
+        auditService.log({
+            action:"PASSWORD_RESET",
+            userId:specialist._id,
+            ipAddress:req.ip
+        });
+        res.json({
+            success:true,
+            message:"Password Updated"
+        });
+    }
+    catch(error){
+        console.error(error);
+        res.status(500).json({
+            success:false,
+            message:"Server Error"
+        });
+    }
+};
+
 // ============================
 // Exports
 // ============================
@@ -222,4 +405,7 @@ module.exports = {
   getPresignedUrl,
   registerSpecialist,
   loginSpecialist,
+  verifyOTP,
+  resetPassword,
+  sendForgotPasswordOTP
 };

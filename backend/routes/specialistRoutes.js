@@ -6,7 +6,10 @@ const rateLimitMiddleware = require("../../security/middleware/rateLimit.middlew
 const {
   getPresignedUrl,
   registerSpecialist,
-  loginSpecialist
+  loginSpecialist,
+  verifyOTP,
+  resetPassword,
+  sendForgotPasswordOTP
 } = require("../controllers/specialistController");
 
 router.post(
@@ -25,6 +28,20 @@ router.post(
   "/login",
   rateLimitMiddleware.authLimiter,
   loginSpecialist
+);
+router.post(
+    "/forgot-password",
+    sendForgotPasswordOTP
+);
+
+router.post(
+    "/verify-otp",
+    verifyOTP
+);
+
+router.post(
+    "/reset-password",
+    resetPassword
 );
 
 module.exports = router;

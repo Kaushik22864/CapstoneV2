@@ -2,6 +2,17 @@ const fs = require("fs");
 const path = require("path");
 const dns = require("dns");
 
+const dotenv = require("dotenv");
+
+// ================================
+// Load Backend Environment
+// ================================
+
+dotenv.config({
+  path: path.resolve(__dirname, ".env"),
+});
+
+
 // ================================
 // Security Framework Initialization
 // ================================

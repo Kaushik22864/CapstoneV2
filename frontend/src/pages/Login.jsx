@@ -158,14 +158,14 @@ function Login() {
 
               <div className="options">
 
-                <label className="remember">
+                {/* <label className="remember">
                   <input type="checkbox" />
                   Remember this device
-                </label>
+                </label> */}
 
-                <a href="#">
-                  Forget Password?
-                </a>
+                <Link to="/forgot-password">
+                  Forgot Password?
+                </Link>
 
               </div>
 

@@ -48,6 +48,16 @@ const specialistSchema = new mongoose.Schema(
     default: true
     },
 
+    resetOTP: {
+    type: String,
+    default: null
+    },
+
+    resetOTPExpires: {
+    type: Date,
+    default: null
+    },
+
     credentialKey:{
         type:String
     },
