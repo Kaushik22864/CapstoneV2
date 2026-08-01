@@ -185,7 +185,7 @@ function UserManagement() {
                 <span>MongoDB</span>
               </div>
 
-              <div className="uptime">● 99.9% Uptime</div>
+              {/* <div className="uptime">● 99.9% Uptime</div> */}
             </div>
           </div>
         </div>
