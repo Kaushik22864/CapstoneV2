@@ -9,6 +9,9 @@ import UserManagement from "./pages/UserManagement";
 import DoctorVerification from "./pages/DoctorVerification";
 import DoctorCredentialReview from "./pages/DoctorCredentialReview";
 import ForgotPassword from "./pages/ForgotPassword";
+import DoctorDashboard from "./pages/DoctorDashboard";
+import ScanHistory from "./pages/ScanHistory";
+import Settings from "./pages/Settings";
 
 function App() {
   return (
@@ -23,6 +26,9 @@ function App() {
       <Route path="/doctor-verification" element={<DoctorVerification />} />
       <Route path="/doctor-credential-review/:id" element={<DoctorCredentialReview />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+      <Route path="/history" element={<ScanHistory />} />
+      <Route path="/settings" element={<Settings />} />
     </Routes>
   );
 }

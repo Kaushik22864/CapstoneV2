@@ -1,0 +1,143 @@
+.settings-page {
+    padding: 40px;
+    background: #f8fafc;
+    min-height: 100vh;
+}
+
+.settings-topbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 30px;
+}
+
+.settings-icons {
+    display: flex;
+    gap: 20px;
+    font-size: 24px;
+}
+
+.settings-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    overflow: hidden;
+    margin-bottom: 30px;
+}
+
+.settings-header {
+    padding: 25px;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.settings-header h2 {
+    margin-bottom: 5px;
+}
+
+.settings-header p {
+    color: #64748b;
+}
+
+.settings-body {
+    padding: 30px;
+    display: flex;
+    gap: 30px;
+}
+
+.avatar-section img {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+}
+
+.form-section {
+    flex: 1;
+}
+
+.settings-row {
+    display: flex;
+    gap: 20px;
+}
+
+.input-group {
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.input-group input,
+.input-group textarea {
+    width: 100%;
+    border: 1px solid #dbe3ef;
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.input-group textarea {
+    height: 100px;
+}
+
+.button-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    padding: 25px;
+}
+
+.cancel-btn {
+    border: none;
+    background: transparent;
+}
+
+.save-btn {
+    background: #0056d6;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 10px;
+}
+
+.security-row {
+    padding: 25px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.change-btn {
+    border: 1px solid #dbe3ef;
+    background: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+}
+
+.danger-card {
+    border: 1px solid #ffd4d4;
+    border-radius: 18px;
+    background: #fff7f7;
+    padding: 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.danger-card h3 {
+    color: red;
+}
+
+.danger-btn {
+    color: red;
+    border: 1px solid #ffb5b5;
+    background: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+}
+
+@media (max-width: 768px) {
+    .settings-body,
+    .settings-row {
+        flex-direction: column;
+    }
+}

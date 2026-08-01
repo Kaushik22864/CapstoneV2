@@ -2,7 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import "../styles/analysis.css";
-import logo from "../assets/logo-1.png";
+import DoctorLayout from "../components/DoctorLayout";
 
 function Analysis() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -67,27 +67,9 @@ function Analysis() {
   };
 
   return (
+    <DoctorLayout active="analysis">
     <div className="analysis-page">
       <div className="analysis-layout">
-        {/* SIDEBAR */}
-        <aside className="analysis-sidebar">
-          <div className="analysis-sidebar-top">
-            <div className="sidebar-logo">
-              <img src={logo} alt="OPTIScan Logo" />
-              <h2>OPTIScan</h2>
-            </div>
-            <nav className="analysis-menu">
-              <a href="#">Dashboard</a>
-              <a href="#" className="active">Analysis</a>
-              <a href="#">Scan History</a>
-              <a href="#">Settings</a>
-            </nav>
-          </div>
-          <Link to="/" className="analysis-logout-btn">
-            Log Out
-          </Link>
-        </aside>
-
         {/* MAIN CONTENT */}
         <main className="analysis-main-content">
           {/* TOPBAR */}
@@ -276,6 +258,7 @@ function Analysis() {
         </main>
       </div>
     </div>
+    </DoctorLayout>
   );
 }
 
