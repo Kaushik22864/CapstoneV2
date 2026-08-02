@@ -12,11 +12,13 @@ const {
   ROLES,
 } = require("../../security/middleware/authorization.middleware");
 
-const Prediction = require("../models/Prediction");
+const Prediction = require("../models/prediction.js");
 
 const router = express.Router();
 
 const FLASK_URL = process.env.FLASK_URL || "http://localhost:5001";
+
+
 
 // =======================================================
 // Predict OCT Image

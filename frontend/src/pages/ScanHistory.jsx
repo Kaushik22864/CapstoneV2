@@ -87,8 +87,8 @@ function ScanHistory() {
                 <th>Patient Name</th>
                 <th>AI Prediction</th>
                 <th>Confidence Score</th>
-                <th>Physician</th>
-                <th>Actions</th>
+                {/* <th>Physician</th> */}
+                {/* <th>Actions</th> */}
               </tr>
             </thead>
 

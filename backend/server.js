@@ -78,6 +78,10 @@ app.use(
   require("./routes/predictRoutes")
 );
 
+const doctorDashboardRoutes = require("./routes/doctorDashboardRoutes");
+
+app.use("/api/doctor/dashboard", doctorDashboardRoutes);
+
 // Health Check
 app.get("/", (req, res) => {
   res.send("API Running");
