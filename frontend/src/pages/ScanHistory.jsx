@@ -1,7 +1,32 @@
 import DoctorLayout from "../components/DoctorLayout";
 import "../styles/scanHistory.css";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 function ScanHistory() {
+  const [history, setHistory] = useState([]);
+  useEffect(() => {
+  const loadHistory = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await axios.get(
+        "http://localhost:5000/api/predict/history",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setHistory(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  loadHistory();
+}, []);
   return (
     <DoctorLayout active="history">
       <div className="scan-history-page">
@@ -93,16 +118,42 @@ function ScanHistory() {
             </thead>
 
             <tbody>
-              <tr>
-                <td colSpan="7" className="empty-row">
-                  No History to Show
-                </td>
-              </tr>
-            </tbody>
+  {history.length === 0 ? (
+    <tr>
+      <td colSpan="5" className="empty-row">
+        No History to Show
+      </td>
+    </tr>
+  ) : (
+    history.map((scan) => (
+      <tr key={scan._id}>
+        <td>{scan._id.slice(-6).toUpperCase()}</td>
+
+        <td>
+          {new Date(scan.createdAt).toLocaleDateString()}
+        </td>
+
+        <td>{scan.patientName}</td>
+
+        <td>
+          <span className="prediction-tag">
+            {scan.prediction}
+          </span>
+        </td>
+
+        <td>
+          {scan.confidence
+            ? `${(scan.confidence * 100).toFixed(2)}%`
+            : "-"}
+        </td>
+      </tr>
+    ))
+  )}
+</tbody>
           </table>
 
           <div className="table-footer">
-            <span>Showing 0 results</span>
+            <span>Showing {history.length} result{history.length !== 1 ? "s" : ""}</span>
 
             <div className="pagination">
               <button>{"<"}</button>

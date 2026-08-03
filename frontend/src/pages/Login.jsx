@@ -96,7 +96,7 @@ function Login() {
           JSON.stringify(data.specialist)
         );
 
-        navigate("/analysis");
+        navigate("/doctor-dashboard");
         return;
       }
 

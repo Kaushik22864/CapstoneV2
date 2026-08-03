@@ -152,14 +152,35 @@ function DoctorDashboard() {
             </div>
 
             <div className="graph-placeholder">
-              <div className="days">
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
-                <span>Sun</span>
+              <div className="graph-bars">
+                <div className="bar-column">
+                  <div className="bar" style={{ height: "42px" }}></div>
+                  <span className="bar-label">Mon</span>
+                </div>
+                <div className="bar-column">
+                  <div className="bar" style={{ height: "74px" }}></div>
+                  <span className="bar-label">Tue</span>
+                </div>
+                <div className="bar-column">
+                  <div className="bar" style={{ height: "58px" }}></div>
+                  <span className="bar-label">Wed</span>
+                </div>
+                <div className="bar-column">
+                  <div className="bar" style={{ height: "92px" }}></div>
+                  <span className="bar-label">Thu</span>
+                </div>
+                <div className="bar-column">
+                  <div className="bar" style={{ height: "82px" }}></div>
+                  <span className="bar-label">Fri</span>
+                </div>
+                <div className="bar-column">
+                  <div className="bar" style={{ height: "104px" }}></div>
+                  <span className="bar-label">Sat</span>
+                </div>
+                <div className="bar-column">
+                  <div className="bar" style={{ height: "68px" }}></div>
+                  <span className="bar-label">Sun</span>
+                </div>
               </div>
             </div>
           </div>
@@ -220,27 +241,26 @@ function DoctorDashboard() {
           <table>
             <thead>
               <tr>
-                <th>Patient ID</th>
-                {/* <th>Scan Type</th> */}
+                <th>Patient</th>
                 <th>AI Prediction</th>
               </tr>
             </thead>
 
             <tbody>
-              {dashboard?.recentAnalysis?.map((scan) => (
-                <tr key={scan.id}>
+              {dashboard?.recentPredictions?.map((scan) => (
+                <tr key={scan._id}>
                   <td>
                     <div className="patient-cell">
-                      <div className="avatar">ST</div>
+                      <div className="avatar">
+                        {scan.patientName?.charAt(0)}
+                      </div>
 
                       <div>
-                        <strong>{scan.patient}</strong>
+                        <strong>{scan.patientName}</strong>
                         <p>{scan.patientId}</p>
                       </div>
                     </div>
                   </td>
-
-                  <td>{scan.scanType}</td>
 
                   <td>
                     <span className="prediction-tag">{scan.prediction}</span>
