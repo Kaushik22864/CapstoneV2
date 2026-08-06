@@ -1,7 +1,96 @@
 import DoctorLayout from "../components/DoctorLayout";
 import "../styles/settings.css";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 function Settings() {
+  const [profile, setProfile] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "", confirmNew: "" });
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get("http://localhost:5000/api/specialists/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.data && res.data.specialist) {
+          setProfile(res.data.specialist);
+        }
+      } catch (err) {
+        console.error("Failed to load profile", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProfile();
+  }, []);
+
+  const updateProfile = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const payload = {
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        email: profile.email,
+        hospital: profile.hospital,
+        specialization: profile.specialization,
+        experience: profile.experience,
+      };
+      const res = await axios.put("http://localhost:5000/api/specialists/me", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert(res.data?.message || "Profile updated");
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to update profile");
+    }
+  };
+
+  const submitChangePassword = async () => {
+    if (passwords.newPassword !== passwords.confirmNew) {
+      alert("New passwords do not match");
+      return;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.put(
+        "http://localhost:5000/api/specialists/me/password",
+        { currentPassword: passwords.currentPassword, newPassword: passwords.newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(res.data?.message || "Password updated");
+      setPasswords({ currentPassword: "", newPassword: "", confirmNew: "" });
+      setShowPasswordForm(false);
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to change password");
+    }
+  };
+
+  const deactivate = async () => {
+    if (!confirm("Are you sure you want to deactivate your account? This cannot be undone.")) return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.delete("http://localhost:5000/api/specialists/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert(res.data?.message || "Account deactivated");
+      // optional: log out user
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to deactivate account");
+    }
+  };
+
+  if (loading) return (
+    <DoctorLayout active="settings"><div className="settings-page">Loading...</div></DoctorLayout>
+  );
+
   return (
     <DoctorLayout active="settings">
       <div className="settings-page">
@@ -39,10 +128,7 @@ function Settings() {
           <div className="settings-body">
 
             <div className="avatar-section">
-              <img
-                src="https://imgs.search.brave.com/W5S0P8uzxeNd-lrg3nyw86ecPMM5oeLYQYRNUL-kj4I/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9wZnBz/dGFjay5jb20vd3At/Y29udGVudC91cGxv/YWRzLzIwMjYvMDMv/ZG93bmxvYWQtNjcu/anBn"
-                alt="profile"
-              />
+              <img src={profile.avatar || "https://imgs.search.brave.com/W5S0P8uzxeNd-lrg3nyw86ecPMM5oeLYQYRNUL-kj4I/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9wZnBz/dGFjay5jb20vd3At/Y29udGVudC91cGxv/YWRzLzIwMjYvMDMv/ZG93bmxvYWQtNjcu/anBn"} alt="profile" />
             </div>
 
             <div className="form-section">
@@ -50,26 +136,26 @@ function Settings() {
               <div className="settings-row">
                 <div className="input-group">
                   <label>Full Name</label>
-                  <input type="text" />
+                  <input type="text" value={`${profile.firstName || ''} ${profile.lastName || ''}`} readOnly />
                 </div>
 
                 <div className="input-group">
                   <label>Email Address</label>
-                  <input type="email" />
+                  <input type="email" value={profile.email || ''} onChange={(e)=>setProfile({...profile,email:e.target.value})} />
                 </div>
               </div>
 
               <div className="input-group">
                 <label>Bio</label>
-                <textarea />
+                <textarea value={profile.bio || ''} onChange={(e)=>setProfile({...profile,bio:e.target.value})} />
               </div>
 
             </div>
           </div>
 
           <div className="button-row">
-            <button className="cancel-btn">Cancel</button>
-            <button className="save-btn">Save Changes</button>
+            <button className="cancel-btn" onClick={()=>window.location.reload()}>Cancel</button>
+            <button className="save-btn" onClick={updateProfile}>Save Changes</button>
           </div>
         </div>
 
@@ -85,10 +171,30 @@ function Settings() {
           <div className="security-row">
             <span>Password</span>
 
-            <button className="change-btn">
-              Change
+            <button className="change-btn" onClick={()=>setShowPasswordForm(!showPasswordForm)}>
+              {showPasswordForm? 'Cancel' : 'Change'}
             </button>
           </div>
+
+          {showPasswordForm && (
+            <div className="password-form">
+              <div className="input-group">
+                <label>Current Password</label>
+                <input type="password" value={passwords.currentPassword} onChange={(e)=>setPasswords({...passwords,currentPassword:e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label>New Password</label>
+                <input type="password" value={passwords.newPassword} onChange={(e)=>setPasswords({...passwords,newPassword:e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label>Confirm New Password</label>
+                <input type="password" value={passwords.confirmNew} onChange={(e)=>setPasswords({...passwords,confirmNew:e.target.value})} />
+              </div>
+              <div style={{marginTop:12}}>
+                <button className="save-btn" onClick={submitChangePassword}>Update Password</button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* DELETE ACCOUNT */}
@@ -103,7 +209,7 @@ function Settings() {
             </p>
           </div>
 
-          <button className="danger-btn">
+          <button className="danger-btn" onClick={deactivate}>
             Deactivate
           </button>
         </div>

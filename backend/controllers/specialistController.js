@@ -398,6 +398,136 @@ const resetPassword=async(req,res)=>{
 };
 
 // ============================
+// Profile Endpoints (GET / PUT / Password / Deactivate)
+// ============================
+
+const getProfile = async (req, res) => {
+  try {
+    const doctorId = req.user.id;
+    const specialist = await Specialist.findById(doctorId).lean();
+    if (!specialist) {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+
+    return res.json({
+      success: true,
+      specialist: {
+        id: specialist._id,
+        firstName: specialist.firstName,
+        lastName: specialist.lastName,
+        email: specialist.email,
+        hospital: specialist.hospital,
+        specialization: specialist.specialization,
+        experience: specialist.experience,
+        verified: specialist.verified,
+        isActive: specialist.isActive,
+        credentialKey: specialist.credentialKey,
+        credentialUrl: specialist.credentialUrl,
+        createdAt: specialist.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    const doctorId = req.user.id;
+    const {
+      firstName,
+      lastName,
+      email,
+      hospital,
+      specialization,
+      experience,
+      credentialKey,
+      credentialUrl,
+    } = req.body;
+
+    const specialist = await Specialist.findById(doctorId);
+    if (!specialist) return res.status(404).json({ success: false, message: 'Doctor not found' });
+
+    // If email change requested, ensure uniqueness
+    if (email && email.toLowerCase() !== specialist.email) {
+      const existing = await Specialist.findOne({ email: email.toLowerCase() });
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'Email already in use' });
+      }
+      specialist.email = email.toLowerCase();
+    }
+
+    if (firstName) specialist.firstName = firstName;
+    if (lastName) specialist.lastName = lastName;
+    if (hospital) specialist.hospital = hospital;
+    if (specialization) specialist.specialization = specialization;
+    if (typeof experience !== 'undefined') specialist.experience = experience;
+    if (credentialKey) specialist.credentialKey = credentialKey;
+    if (credentialUrl) specialist.credentialUrl = credentialUrl;
+
+    await specialist.save();
+
+    auditService.log({ action: AUDIT_EVENTS.USER_UPDATED, userId: doctorId, ipAddress: req.ip });
+
+    res.json({ success: true, message: 'Profile updated', specialist });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const doctorId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Missing password fields' });
+    }
+
+    const specialist = await Specialist.findById(doctorId);
+    if (!specialist) return res.status(404).json({ success: false, message: 'Doctor not found' });
+
+    const match = await passwordService.verify(currentPassword, specialist.password);
+    if (!match) return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+
+    // hash will validate policy
+    const hashed = await passwordService.hash(newPassword, { userInfo: { email: specialist.email, firstName: specialist.firstName, lastName: specialist.lastName } });
+    specialist.password = hashed;
+    await specialist.save();
+
+    auditService.log({ action: 'PASSWORD_CHANGED', userId: doctorId, ipAddress: req.ip });
+
+    res.json({ success: true, message: 'Password updated' });
+  } catch (error) {
+    console.error(error);
+    if (error.message && error.message.startsWith('Password policy violation')) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+const deactivateAccount = async (req, res) => {
+  try {
+    const doctorId = req.user.id;
+    const specialist = await Specialist.findById(doctorId);
+    if (!specialist) return res.status(404).json({ success: false, message: 'Doctor not found' });
+
+    specialist.isActive = false;
+    await specialist.save();
+
+    auditService.log({ action: 'ACCOUNT_DEACTIVATED', userId: doctorId, ipAddress: req.ip });
+
+    res.json({ success: true, message: 'Account deactivated' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// ============================
 // Exports
 // ============================
 
@@ -407,5 +537,10 @@ module.exports = {
   loginSpecialist,
   verifyOTP,
   resetPassword,
-  sendForgotPasswordOTP
+  sendForgotPasswordOTP,
+  // Profile endpoints
+  getProfile,
+  updateProfile,
+  changePassword,
+  deactivateAccount,
 };
